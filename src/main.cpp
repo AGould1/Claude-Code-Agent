@@ -74,6 +74,22 @@ int main(int argc, char* argv[]) {
                         json::array({"file_path", "content"})
                     }
                 }}
+            }}},
+            {{"type", "function"}, {"function", {
+                {"name", "Bash"},
+                {"description", "Execute a shell command"},
+                {"parameters", {
+                    {"type", "object"},
+                    {"properties", {
+                        {"command", {
+                            {"type", "string"},
+                            {"description", "The command to execute"}
+                        }}
+                    }},
+                    {"required",
+                        json::array({"command"})
+                    }
+                }}
             }}}
         })}
     };
@@ -142,6 +158,28 @@ int main(int argc, char* argv[]) {
                 {"content", "File written successfully"}
             });
         }
+
+        else if (function_name == "Bash") {
+            std::string command = arguments["command"];
+
+            FILE* pipe = popen(command.c_str(), "r");
+            if (!pipe) {
+                std::cerr << "Error opening pipe" << std::endl;
+                return 1;
+            }
+            char buffer[128];
+            std::string output;
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+            pclose(pipe);
+
+            messages.push_back({
+                {"role", "tool"},
+                {"tool_call_id", tool_calls["id"]},
+                {"content", output}
+            });
+        }
     }
 
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -152,8 +190,7 @@ int main(int argc, char* argv[]) {
         std::cout << result["choices"][0]["message"]["content"].get<std::string>();
         break;
     }
-
-    }
+}
     return 0;
 }
     
