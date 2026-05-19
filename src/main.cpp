@@ -54,6 +54,26 @@ int main(int argc, char* argv[]) {
                     }},
                     {"required", json::array({"file_path"})}
                 }}
+            }}},
+            {{"type", "function"}, {"function", {
+                {"name", "Write"},
+                {"description", "Write content to a file"},
+                {"parameters", {
+                    {"type", "object"},
+                    {"properties", {
+                        {"file_path", {
+                            {"type", "string"},
+                            {"description", "The path of the file to write to"}
+                        }},
+                        {"content", {
+                            {"type", "string"},
+                            {"description", "The content to write to the file"}
+                        }}
+                    }},
+                    {"required", 
+                        json::array({"file_path", "content"})
+                    }
+                }}
             }}}
         })}
     };
@@ -87,22 +107,41 @@ int main(int argc, char* argv[]) {
         std::string function_arguments = tool_calls["function"]["arguments"];
 
         json arguments = json::parse(function_arguments);
-        std::string file_path = arguments["file_path"];
 
-        std::ifstream file(file_path);
-        if (!file.is_open()) {
-            std::cerr << "Error opening file" << std::endl;
-            return 1;
+        if (function_name == "Read") {
+            std::string file_path = arguments["file_path"];
+
+            std::ifstream file(file_path);
+            if (!file.is_open()) {
+                std::cerr << "Error opening file" << std::endl;
+                return 1;
+            }
+            std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+            messages.push_back({
+                {"role", "tool"},
+                {"tool_call_id", tool_calls["id"]},
+                {"content", contents}
+            });
         }
-        std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-        messages.push_back({
-            {"role", "tool"},
-            {"tool_call_id", tool_calls["id"]},
-            {"content", contents}
-        });
-        
-        std::cerr << contents;
+        else if (function_name == "Write") {
+            std::string file_path = arguments["file_path"];
+            std::string content = arguments["content"];
+
+            std::ofstream file(file_path);
+            if (!file.is_open()) {
+                std::cerr << "Error opening file" << std::endl;
+                return 1;
+            }
+            file << content;
+
+            messages.push_back({
+                {"role", "tool"},
+                {"tool_call_id", tool_calls["id"]},
+                {"content", "File written successfully"}
+            });
+        }
     }
 
     // You can use print statements as follows for debugging, they'll be visible when running tests.
