@@ -23,6 +23,3 @@ The program maintains a conversation history (`messages`) that grows with each i
 - [cpr](https://github.com/libcpr/cpr) — HTTP requests
 - [nlohmann/json](https://github.com/nlohmann/json) — JSON parsing
 - OpenRouter API
-
-## Based on
-[CodeCrafters — Build Your Own Claude Code](https://codecrafters.io)
