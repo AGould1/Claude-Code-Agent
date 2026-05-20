@@ -17,6 +17,8 @@ The program maintains a conversation history (`messages`) that grows with each i
 ```bash
 ./your_program.sh -p "Your prompt here"
 ```
+## Based on
+[CodeCrafters — Build Your Own Claude Code](https://codecrafters.io)
 
 ## Built with
 - C++
