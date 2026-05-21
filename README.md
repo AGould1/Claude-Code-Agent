@@ -1,6 +1,6 @@
 # Claude Code Agent
 
-An AI coding agent built in C++ that communicates with a Large Language Model (LLM) via the OpenRouter API. Supports an autonomous agent loop with Read, Write, and Bash tools — enabling the model to read files, write code, and execute shell commands on your local machine through a browser-based chat UI.
+An AI coding agent built in C++ that communicates with a Large Language Model (LLM) via the OpenRouter API. Supports an autonomous agent loop with Read, Write, and Bash tools. This enables the model to read files, write code, and execute shell commands on your local machine through a browser-based chat UI.
 
 ## Features
 
