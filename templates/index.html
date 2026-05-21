@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js">
+        </script>
+        <title>
+            Claude Agent
+        </title>
+        <style>
+            body {
+                background-color: #2d2d2d;
+                margin: 0;
+            }
+
+            #display {
+                color: #e0e0e0;
+                height: 80vh;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            #input-bar {
+                display: flex;
+                padding: 10px;
+            }
+
+            #user-input {
+                background-color: #707070;
+                color: #e0e0e0;
+                border: 1px solid #555555;
+                padding: 8px;
+                flex: 1;
+            }
+
+            button {
+                background-color: #e05555;
+                color: #e0e0e0;
+                border: none;
+                padding: 8px 16px;
+                cursor: pointer;
+            }
+
+            .user-message {
+                background-color: #3d3d3d;
+                padding: 10px;
+                border-radius: 8px;
+                text-align: right;
+                width: fit-content;
+                margin-left: auto;
+            }
+
+            .ai-message {
+                background-color: #444444;
+                padding: 10px;
+                border-radius: 8px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="display">
+        </div>
+        <div id="input-bar">
+            <input id="user-input" onkeydown="if(event.key == 'Enter') sendMessage()">
+            <button onclick="sendMessage()">
+                Send
+            </button>
+        </div>
+    <script>
+        window.onload = function() {
+            fetch("http://localhost:5000/history")
+                .then(data => data.json())
+                .then(chat_history => {
+                    let messages = JSON.parse(chat_history.history);
+                    messages.forEach(message => {
+                        if(message.role == "user") {
+                            document.getElementById("display").innerHTML += "<div class='user-message'>" + message.content + "</div>";
+                        }
+                        else if(message.role == "assistant") {
+                            document.getElementById("display").innerHTML += "<div class='ai-message'>" + marked.parse(message.content) + "</div>";
+                        }
+                    })
+                })
+        }
+        function sendMessage() {
+            let values = document.getElementById("user-input").value;
+            document.getElementById("display").innerHTML += "<div class='user-message'>" + values + "</div>";
+            document.getElementById("display").scrollTop = document.getElementById("display").scrollHeight;
+            fetch("http://localhost:5000/chat", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message: values})
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("display").innerHTML += "<div class='ai-message'>" + marked.parse(data.response) + "</div>";
+                document.getElementById("display").scrollTop = document.getElementById("display").scrollHeight;
+            })
+            document.getElementById("user-input").value = "";
+        }
+        </script>
+    </body>
+</html>

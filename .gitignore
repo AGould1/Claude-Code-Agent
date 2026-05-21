@@ -5,6 +5,15 @@ Thumbs.db:encryptable
 ehthumbs.db
 ehthumbs_vista.db
 
+.vscode/
+*.exe
+*.dll
+chat_history.json
+__pycache__/
+*.log
+greet.py
+test.c
+
 # Dump file
 *.stackdump
 

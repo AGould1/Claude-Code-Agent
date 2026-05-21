@@ -32,8 +32,24 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    json messages = json::array({
-        {{"role", "user"}, {"content", prompt}}
+    json messages = json::array();
+
+    std::ifstream chat_file("chat_history.json");
+    if (!chat_file.is_open()) {
+    }
+    else {
+        std::string history((std::istreambuf_iterator<char>(chat_file)), std::istreambuf_iterator<char>());
+        messages = json::parse(history);
+    }
+
+    if (messages.empty()) {
+        messages.push_back({
+            {"role", "system"}, {"content", "You are a helpful assistant. Do not use emojis in your responses."}
+        });
+    }
+
+    messages.push_back({
+        {"role", "user"}, {"content", prompt}
     });
 
     while (true) {
@@ -87,110 +103,115 @@ int main(int argc, char* argv[]) {
                         }}
                     }},
                     {"required",
-                        json::array({"command"})
-                    }
-                }}
-            }}}
-        })}
-    };
+                        json::array({"command"})}
+                    }}
+                }}}
+            })}
+        };
 
         cpr::Response response = cpr::Post(
         cpr::Url{base_url + "/chat/completions"},
         cpr::Header{
             {"Authorization", "Bearer " + api_key},
-            {"Content-Type", "application/json"}
-        },
-        cpr::Body{request_body.dump()}
-    );
+            {"Content-Type", "application/json"}},
+        cpr::Body{request_body.dump()});
+        
+        std::cerr << "Status: " << response.status_code << std::endl;
+        std::cerr << "Response: " << response.text << std::endl;
 
-    if (response.status_code != 200) {
-        std::cerr << "HTTP error: " << response.status_code << std::endl;
-        return 1;
-    }
-
-    json result = json::parse(response.text);
-
-    if (!result.contains("choices") || result["choices"].empty()) {
-        std::cerr << "No choices in response" << std::endl;
-        return 1;
-    }
-
-    messages.push_back(result["choices"][0]["message"]);
-
-    if (result["choices"][0]["message"].contains("tool_calls")) {
-        auto tool_calls = result["choices"][0]["message"]["tool_calls"][0];
-        std::string function_name = tool_calls["function"]["name"];
-        std::string function_arguments = tool_calls["function"]["arguments"];
-
-        json arguments = json::parse(function_arguments);
-
-        if (function_name == "Read") {
-            std::string file_path = arguments["file_path"];
-
-            std::ifstream file(file_path);
-            if (!file.is_open()) {
-                std::cerr << "Error opening file" << std::endl;
-                return 1;
-            }
-            std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-            messages.push_back({
-                {"role", "tool"},
-                {"tool_call_id", tool_calls["id"]},
-                {"content", contents}
-            });
+        if (response.status_code != 200) {
+            std::cerr << "HTTP error: " << response.status_code << std::endl;
+            std::cerr << response.text << std::endl;
+            return 1;
         }
 
-        else if (function_name == "Write") {
-            std::string file_path = arguments["file_path"];
-            std::string content = arguments["content"];
+        json result = json::parse(response.text);
 
-            std::ofstream file(file_path);
-            if (!file.is_open()) {
-                std::cerr << "Error opening file" << std::endl;
-                return 1;
-            }
-            file << content;
-
-            messages.push_back({
-                {"role", "tool"},
-                {"tool_call_id", tool_calls["id"]},
-                {"content", "File written successfully"}
-            });
+        if (!result.contains("choices") || result["choices"].empty()) {
+            std::cerr << "No choices in response" << std::endl;
+            return 1;
         }
 
-        else if (function_name == "Bash") {
-            std::string command = arguments["command"];
+        messages.push_back(result["choices"][0]["message"]);
 
-            FILE* pipe = popen(command.c_str(), "r");
-            if (!pipe) {
-                std::cerr << "Error opening pipe" << std::endl;
-                return 1;
-            }
-            char buffer[128];
-            std::string output;
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                output += buffer;
-            }
-            pclose(pipe);
+        if (result["choices"][0]["message"].contains("tool_calls")) {
+            auto tool_calls = result["choices"][0]["message"]["tool_calls"][0];
+            std::string function_name = tool_calls["function"]["name"];
+            std::string function_arguments = tool_calls["function"]["arguments"];
 
-            messages.push_back({
-                {"role", "tool"},
-                {"tool_call_id", tool_calls["id"]},
-                {"content", output}
-            });
+            json arguments = json::parse(function_arguments);
+
+            if (function_name == "Read") {
+                std::string file_path = arguments["file_path"];
+
+                std::ifstream file(file_path);
+                if (!file.is_open()) {
+                    std::cerr << "Error opening file" << std::endl;
+                    return 1;
+                }  
+                std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+                messages.push_back({
+                    {"role", "tool"},
+                    {"tool_call_id", tool_calls["id"]},
+                    {"content", contents}
+                });
+            }
+
+            else if (function_name == "Write") {
+                std::string file_path = arguments["file_path"];
+                std::string content = arguments["content"];
+
+                std::ofstream file(file_path);
+                if (!file.is_open()) {
+                    std::cerr << "Error opening file" << std::endl;
+                    return 1;
+                }
+                file << content;
+
+                messages.push_back({
+                    {"role", "tool"},
+                    {"tool_call_id", tool_calls["id"]},
+                    {"content", "File written successfully"}
+                });
+            }
+
+            else if (function_name == "Bash") {
+                std::string command = arguments["command"];
+
+                FILE* pipe = popen(command.c_str(), "r");
+                if (!pipe) {
+                    std::cerr << "Error opening pipe" << std::endl;
+                    return 1;
+                }
+                char buffer[128];
+                std::string output;
+                while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    output += buffer;
+                }
+                pclose(pipe);
+
+                messages.push_back({
+                    {"role", "tool"},
+                    {"tool_call_id", tool_calls["id"]},
+                    {"content", output}
+                });
+            }
         }
-    }
 
     // You can use print statements as follows for debugging, they'll be visible when running tests.
-    std::cerr << "Logs from your program will appear here!" << std::endl;
+        std::cerr << "Logs from your program will appear here!" << std::endl;
 
     // TODO: Uncomment the line below to pass the first stage
-    if (!result["choices"][0]["message"].contains("tool_calls")) {
-        std::cout << result["choices"][0]["message"]["content"].get<std::string>();
-        break;
+        if (!result["choices"][0]["message"].contains("tool_calls")) {
+            std::cout << result["choices"][0]["message"]["content"].get<std::string>();
+            break;
+        }
     }
-}
+
+    std::ofstream chat_out("chat_history.json");
+    chat_out << messages.dump();
+
     return 0;
 }
     
